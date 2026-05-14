@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Diet Planner</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial, sans-serif;background:#0f172a;color:#e5e7eb}
+.app{max-width:1150px;margin:auto;padding:24px}
+h1{text-align:center;font-size:42px;margin-bottom:6px}
+.sub{text-align:center;color:#94a3b8;margin-bottom:24px}
+.card,.result{background:#111827;border:1px solid #334155;border-radius:18px;padding:22px;margin-bottom:20px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+label{display:flex;flex-direction:column;gap:7px;font-weight:700}
+input,select{padding:12px;border-radius:10px;border:1px solid #475569;background:#020617;color:white}
+.checks{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+.checks label{flex-direction:row;font-weight:400}
+button{padding:14px;border:0;border-radius:12px;background:#22c55e;color:#052e16;font-weight:900;cursor:pointer}
+.food-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.food{background:#020617;border:1px solid #334155;border-radius:14px;padding:14px}
+.food-row{display:grid;grid-template-columns:1fr 80px 90px;gap:10px;align-items:center}
+.meal{background:#020617;border:1px solid #334155;border-radius:14px;padding:14px;margin:12px 0}
+.warning{background:#451a03;border:1px solid #f59e0b;border-radius:14px;padding:14px;margin-top:14px}
+.good{color:#22c55e}
+.bad{color:#fb7185}
+.small{color:#94a3b8;font-size:14px}
+@media(max-width:850px){.grid,.checks,.food-grid{grid-template-columns:1fr}.food-row{grid-template-columns:1fr}}
+</style>
+</head>
+
+<body>
+<main class="app">
+<h1>AI Diet Planner</h1>
+<p class="sub">TDEE calculator + country food system + calorie builder.</p>
+
+<section class="card">
+<div class="grid">
+<label>Age <input id="age" type="number" value="25"></label>
+<label>Weight kg <input id="weight" type="number" value="75"></label>
+<label>Height cm <input id="height" type="number" value="175"></label>
+
+<label>Sex
+<select id="sex">
+<option value="male">Male</option>
+<option value="female">Female</option>
+</select>
+</label>
+
+<label>Activity
+<select id="activity">
+<option value="1.2">Sedentary</option>
+<option value="1.375">Light</option>
+<option value="1.55" selected>Moderate</option>
+<option value="1.725">Very active</option>
+</select>
+</label>
+
+<label>Goal
+<select id="goal">
+<option value="loss">Fat loss</option>
+<option value="maintain">Maintain</option>
+<option value="gain">Muscle gain</option>
+</select>
+</label>
+
+<label>Country Food Style
+<select id="country">
+<option value="india">India</option>
+<option value="uk">UK / Europe</option>
+<option value="usa">USA</option>
+<option value="china">China</option>
+</select>
+</label>
+
+<label>Diet Type
+<select id="diet">
+<option value="nonveg">Non-veg</option>
+<option value="veg">Vegetarian</option>
+<option value="vegan">Vegan</option>
+<option value="egg">Eggitarian</option>
+</select>
+</label>
+
+<label>Meals Per Day
+<select id="meals">
+<option value="1">1 meal</option>
+<option value="2">2 meals</option>
+<option value="3" selected>3 meals</option>
+<option value="4">4 meals</option>
+</select>
+</label>
+</div>
+
+<h3>Medical / Safety Flags</h3>
+<div class="checks">
+<label><input type="checkbox" value="diabetes"> Diabetes / sugar</label>
+<label><input type="checkbox" value="highbp"> High BP</label>
+<label><input type="checkbox" value="lowbp"> Low BP</label>
+<label><input type="checkbox" value="thyroid"> Thyroid</label>
+<label><input type="checkbox" value="kidney"> Kidney issue</label>
+<label><input type="checkbox" value="heart"> Heart issue</label>
+<label><input type="checkbox" value="pregnancy"> Pregnancy</label>
+<label><input type="checkbox" value="breastfeeding"> Breastfeeding</label>
+<label><input type="checkbox" value="eating"> Eating disorder history</label>
+<label><input type="checkbox" value="stress"> Stress / poor sleep</label>
+<label><input type="checkbox" value="allergy"> Food allergy</label>
+</div>
+
+<button onclick="generate()">Generate Diet Plan</button>
+</section>
+
+<section id="result" class="result"></section>
+</main>
+
+<script>
+const foods = [
+  // INDIA
+  {name:"Chapati", country:"india", diet:["veg","nonveg","egg","vegan"], kcal:110, p:3, c:22, f:2, serving:"1 medium"},
+  {name:"Cooked rice", country:"india", diet:["veg","nonveg","egg","vegan"], kcal:130, p:3, c:28, f:0, serving:"100g"},
+  {name:"Dal", country:"india", diet:["veg","nonveg","egg","vegan"], kcal:160, p:10, c:25, f:3, serving:"1 bowl"},
+  {name:"Paneer", country:"india", diet:["veg","nonveg","egg"], kcal:265, p:18, c:4, f:20, serving:"100g"},
+  {name:"Chicken breast", country:"india", diet:["nonveg"], kcal:165, p:31, c:0, f:4, serving:"100g"},
+  {name:"Egg", country:"india", diet:["nonveg","egg"], kcal:78, p:6, c:1, f:5, serving:"1 egg"},
+  {name:"Curd", country:"india", diet:["veg","nonveg","egg"], kcal:90, p:5, c:7, f:4, serving:"100g"},
+  {name:"Tofu", country:"india", diet:["vegan","veg","nonveg","egg"], kcal:120, p:13, c:3, f:7, serving:"100g"},
+  {name:"Vegetable sabzi", country:"india", diet:["veg","nonveg","egg","vegan"], kcal:120, p:4, c:16, f:5, serving:"1 bowl"},
+  {name:"Roasted chana", country:"india", diet:["veg","nonveg","egg","vegan"], kcal:180, p:10, c:30, f:3, serving:"50g"},
+
+  // UK / EUROPE
+  {name:"Oats", country:"uk", diet:["veg","nonveg","egg","vegan"], kcal:150, p:5, c:27, f:3, serving:"40g"},
+  {name:"Wholegrain toast", country:"uk", diet:["veg","nonveg","egg","vegan"], kcal:95, p:4, c:17, f:1, serving:"1 slice"},
+  {name:"Greek yogurt", country:"uk", diet:["veg","nonveg","egg"], kcal:100, p:10, c:4, f:5, serving:"100g"},
+  {name:"Chicken breast", country:"uk", diet:["nonveg"], kcal:165, p:31, c:0, f:4, serving:"100g"},
+  {name:"Salmon", country:"uk", diet:["nonveg"], kcal:208, p:22, c:0, f:13, serving:"100g"},
+  {name:"Egg", country:"uk", diet:["nonveg","egg"], kcal:78, p:6, c:1, f:5, serving:"1 egg"},
+  {name:"Potato", country:"uk", diet:["veg","nonveg","egg","vegan"], kcal:90, p:2, c:21, f:0, serving:"100g"},
+  {name:"Lentil soup", country:"uk", diet:["veg","nonveg","egg","vegan"], kcal:180, p:12, c:28, f:3, serving:"1 bowl"},
+  {name:"Tofu", country:"uk", diet:["veg","nonveg","egg","vegan"], kcal:120, p:13, c:3, f:7, serving:"100g"},
+  {name:"Mixed vegetables", country:"uk", diet:["veg","nonveg","egg","vegan"], kcal:80, p:4, c:14, f:1, serving:"1 bowl"},
+
+  // USA
+  {name:"Oats", country:"usa", diet:["veg","nonveg","egg","vegan"], kcal:150, p:5, c:27, f:3, serving:"40g"},
+  {name:"Turkey/chicken", country:"usa", diet:["nonveg"], kcal:160, p:30, c:0, f:4, serving:"100g"},
+  {name:"Egg", country:"usa", diet:["nonveg","egg"], kcal:78, p:6, c:1, f:5, serving:"1 egg"},
+  {name:"Black beans", country:"usa", diet:["veg","nonveg","egg","vegan"], kcal:170, p:11, c:30, f:1, serving:"1 bowl"},
+  {name:"Rice", country:"usa", diet:["veg","nonveg","egg","vegan"], kcal:130, p:3, c:28, f:0, serving:"100g"},
+  {name:"Sweet potato", country:"usa", diet:["veg","nonveg","egg","vegan"], kcal:90, p:2, c:21, f:0, serving:"100g"},
+  {name:"Greek yogurt", country:"usa", diet:["veg","nonveg","egg"], kcal:100, p:10, c:4, f:5, serving:"100g"},
+  {name:"Tofu", country:"usa", diet:["veg","nonveg","egg","vegan"], kcal:120, p:13, c:3, f:7, serving:"100g"},
+
+  // CHINA
+  {name:"Rice porridge", country:"china", diet:["veg","nonveg","egg","vegan"], kcal:120, p:3, c:26, f:1, serving:"1 bowl"},
+  {name:"Steamed rice", country:"china", diet:["veg","nonveg","egg","vegan"], kcal:130, p:3, c:28, f:0, serving:"100g"},
+  {name:"Tofu", country:"china", diet:["veg","nonveg","egg","vegan"], kcal:120, p:13, c:3, f:7, serving:"100g"},
+  {name:"Chicken stir fry", country:"china", diet:["nonveg"], kcal:220, p:30, c:8, f:8, serving:"1 portion"},
+  {name:"Fish", country:"china", diet:["nonveg"], kcal:160, p:25, c:0, f:6, serving:"100g"},
+  {name:"Egg", country:"china", diet:["nonveg","egg"], kcal:78, p:6, c:1, f:5, serving:"1 egg"},
+  {name:"Vegetable stir fry", country:"china", diet:["veg","nonveg","egg","vegan"], kcal:150, p:5, c:18, f:7, serving:"1 bowl"},
+  {name:"Soy milk", country:"china", diet:["veg","nonveg","egg","vegan"], kcal:90, p:7, c:8, f:4, serving:"250ml"}
+];
+
+function val(id){return document.getElementById(id).value}
+function num(id){return Number(document.getElementById(id).value)}
+function checked(){return [...document.querySelectorAll(".checks input:checked")].map(x=>x.value)}
+
+function bmr(age, weight, height, sex){
+  return sex==="male"
+    ? 10*weight + 6.25*height - 5*age + 5
+    : 10*weight + 6.25*height - 5*age - 161;
+}
+
+function targetCalories(tdee, goal){
+  if(goal==="loss") return Math.round(tdee - 400);
+  if(goal==="gain") return Math.round(tdee + 300);
+  return Math.round(tdee);
+}
+
+function warnings(conds, sex){
+  let w=[];
+  if(conds.includes("diabetes")) w.push("Diabetes/sugar: keep sugar low and carbs controlled. Confirm with doctor/dietitian.");
+  if(conds.includes("highbp")) w.push("High BP: keep salt low. Avoid processed salty food.");
+  if(conds.includes("lowbp")) w.push("Low BP: do not cut salt/calories aggressively without medical guidance.");
+  if(conds.includes("kidney")) w.push("Kidney issue: protein/sodium/potassium may need medical control.");
+  if(conds.includes("heart")) w.push("Heart issue: keep saturated fat and salt low.");
+  if(conds.includes("pregnancy")){
+    if(sex!=="female") w.push("Pregnancy selected but sex is not female. Check the form.");
+    w.push("Pregnancy: do not use aggressive fat-loss calories.");
+  }
+  if(conds.includes("breastfeeding")) w.push("Breastfeeding: calorie needs may be higher.");
+  if(conds.includes("eating")) w.push("Eating disorder history: calorie tracking may be unsafe.");
+  if(conds.includes("allergy")) w.push("Food allergy: remove unsafe foods manually.");
+  if(conds.includes("thyroid")) w.push("Thyroid: calorie needs may vary.");
+  if(conds.includes("stress")) w.push("Stress/sleep: hunger and recovery can be affected.");
+  return w;
+}
+
+function filteredFoods(country,diet){
+  return foods.filter(f=>f.country===country && f.diet.includes(diet));
+}
+
+function generateAutoPlan(foodList, target, mealsPerDay){
+  let plan=[];
+  let perMeal=Math.round(target/mealsPerDay);
+
+  for(let i=0;i<mealsPerDay;i++){
+    let meal=[];
+    let total=0;
+
+    let protein = foodList.find(f=>f.p>=20) || foodList[0];
+    let carb = foodList.find(f=>f.c>=20) || foodList[1] || foodList[0];
+    let veg = foodList.find(f=>f.name.toLowerCase().includes("veg") || f.name.toLowerCase().includes("salad")) || foodList[2] || foodList[0];
+
+    [protein,carb,veg].forEach(item=>{
+      if(item && !meal.includes(item)){
+        meal.push({...item, qty:1});
+        total += item.kcal;
+      }
+    });
+
+    while(total < perMeal - 120 && meal.length < 5){
+      let next = foodList[Math.floor(Math.random()*foodList.length)];
+      meal.push({...next, qty:1});
+      total += next.kcal;
+    }
+
+    plan.push(meal);
+  }
+
+  return plan;
+}
+
+function mealTotals(meal){
+  return meal.reduce((a,f)=>{
+    a.kcal += f.kcal*f.qty;
+    a.p += f.p*f.qty;
+    a.c += f.c*f.qty;
+    a.f += f.f*f.qty;
+    return a;
+  },{kcal:0,p:0,c:0,f:0});
+}
+
+function renderFoodSelector(foodList){
+  return foodList.map((f,i)=>`
+    <div class="food">
+      <div class="food-row">
+        <div>
+          <strong>${f.name}</strong>
+          <div class="small">${f.serving} — ${f.kcal} kcal | P ${f.p}g C ${f.c}g F ${f.f}g</div>
+        </div>
+        <input id="qty-${i}" type="number" min="0" step="0.5" value="0">
+        <button onclick="updateCustomPlate()">Add</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+let currentFoodList = [];
+let currentTarget = 0;
+
+function updateCustomPlate(){
+  let totals={kcal:0,p:0,c:0,f:0};
+  let selected=[];
+
+  currentFoodList.forEach((f,i)=>{
+    let qty = Number(document.getElementById(`qty-${i}`)?.value || 0);
+    if(qty>0){
+      selected.push({...f,qty});
+      totals.kcal += f.kcal*qty;
+      totals.p += f.p*qty;
+      totals.c += f.c*qty;
+      totals.f += f.f*qty;
+    }
+  });
+
+  let remaining = Math.round(currentTarget - totals.kcal);
+  let status = remaining>=0 ? "good" : "bad";
+
+  document.getElementById("customTotals").innerHTML = `
+    <h3>Your Selected Food Total</h3>
+    <p><strong>Calories:</strong> ${Math.round(totals.kcal)} kcal</p>
+    <p><strong>Protein:</strong> ${Math.round(totals.p)}g | 
+       <strong>Carbs:</strong> ${Math.round(totals.c)}g | 
+       <strong>Fat:</strong> ${Math.round(totals.f)}g</p>
+    <p class="${status}"><strong>Remaining calories:</strong> ${remaining} kcal</p>
+  `;
+}
+
+function generate(){
+  let age=num("age"), weight=num("weight"), height=num("height");
+  let sex=val("sex"), activity=Number(val("activity")), goal=val("goal");
+  let country=val("country"), diet=val("diet"), mealsPerDay=num("meals");
+  let conds=checked();
+
+  if(!age || !weight || !height){alert("Enter age, weight and height.");return;}
+
+  let BMR=bmr(age,weight,height,sex);
+  let TDEE=BMR*activity;
+  let target=targetCalories(TDEE,goal);
+
+  if(conds.includes("pregnancy") || conds.includes("breastfeeding") || conds.includes("eating")){
+    target=Math.round(TDEE);
+  }
+
+  currentTarget=target;
+  currentFoodList=filteredFoods(country,diet);
+
+  let proteinTarget=Math.round(weight*(goal==="gain"?1.8:goal==="loss"?1.6:1.4));
+  let carbsTarget=Math.round((target*0.45)/4);
+  let fatTarget=Math.round((target*0.25)/9);
+
+  let autoPlan=generateAutoPlan(currentFoodList,target,mealsPerDay);
+  let daily={kcal:0,p:0,c:0,f:0};
+
+  let html=`
+    <h2>Your Result</h2>
+    <p><strong>BMR:</strong> ${Math.round(BMR)} kcal/day</p>
+    <p><strong>TDEE:</strong> ${Math.round(TDEE)} kcal/day</p>
+    <p><strong>Goal calories:</strong> ${target} kcal/day</p>
+    <p><strong>Protein target:</strong> ${proteinTarget}g/day</p>
+    <p><strong>Carbs target:</strong> around ${carbsTarget}g/day</p>
+    <p><strong>Fat target:</strong> around ${fatTarget}g/day</p>
+
+    <h3>Auto Meal Plan</h3>
+  `;
+
+  autoPlan.forEach((meal,index)=>{
+    let t=mealTotals(meal);
+    daily.kcal+=t.kcal; daily.p+=t.p; daily.c+=t.c; daily.f+=t.f;
+
+    html+=`
+      <div class="meal">
+        <h4>Meal ${index+1}</h4>
+        ${meal.map(f=>`<p>${f.qty} × ${f.name} <span class="small">(${f.serving})</span></p>`).join("")}
+        <p><strong>${Math.round(t.kcal)} kcal</strong> | P ${Math.round(t.p)}g | C ${Math.round(t.c)}g | F ${Math.round(t.f)}g</p>
+      </div>
+    `;
+  });
+
+  html+=`
+    <h3>Auto Plan Total</h3>
+    <p><strong>Calories:</strong> ${Math.round(daily.kcal)} kcal</p>
+    <p><strong>Protein:</strong> ${Math.round(daily.p)}g | 
+       <strong>Carbs:</strong> ${Math.round(daily.c)}g | 
+       <strong>Fat:</strong> ${Math.round(daily.f)}g</p>
+
+    <h3>Build Your Own Food Plate</h3>
+    <p class="small">Select food quantities below. The system calculates calories and remaining target.</p>
+    <div class="food-grid">${renderFoodSelector(currentFoodList)}</div>
+    <div id="customTotals" class="meal"></div>
+  `;
+
+  let ws=warnings(conds,sex);
+  if(ws.length){
+    html+=`<div class="warning"><h3>Safety Warnings</h3>${ws.map(x=>`<p>${x}</p>`).join("")}</div>`;
+  }
+
+  html+=`
+    <div class="warning">
+      <strong>Disclaimer:</strong> This is a general educational estimate, not medical advice.
+      If you have diabetes, pregnancy, kidney disease, heart disease, blood pressure issues,
+      eating disorder history, or any serious condition, speak with a doctor or registered dietitian.
+    </div>
+  `;
+
+  document.getElementById("result").innerHTML=html;
+  updateCustomPlate();
+}
+</script>
+</body>
+</html>
